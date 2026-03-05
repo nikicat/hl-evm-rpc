@@ -39,4 +39,5 @@ pub struct SpotTokenInfo {
     pub name: String,
     pub full_name: Option<String>,
     pub wei_decimals: u32,
+    pub token_id: Option<String>,
 }

@@ -69,4 +69,5 @@ impl HlClient {
             .map_err(|e| e.to_string())?;
         resp.json().await.map_err(|e| e.to_string())
     }
+
 }

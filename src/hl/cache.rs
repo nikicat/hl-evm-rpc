@@ -72,4 +72,5 @@ impl CachedHlClient {
             .await;
         Ok(arc)
     }
+
 }

@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HyperLiquid Send</title>
+<style>
+  :root { --bg: #0a0a0f; --card: #14141f; --border: #2a2a3a; --accent: #4f8; --text: #e0e0e8; --muted: #888; --err: #f66; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
+  .container { max-width: 540px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+  .subtitle { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.9rem; }
+  .subtitle a { color: var(--accent); text-decoration: none; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
+  .btn { display: inline-block; padding: 0.5rem 1rem; border: none; border-radius: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-secondary { background: var(--border); color: var(--text); }
+  .tabs { display: flex; gap: 0.25rem; margin-bottom: 1rem; }
+  .tab { padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; font-size: 0.85rem; }
+  .tab.active { background: var(--border); color: var(--text); border-color: var(--accent); }
+  .form-group { margin-bottom: 0.75rem; }
+  .form-group label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.25rem; }
+  .form-group input, .form-group select { width: 100%; padding: 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.85rem; outline: none; }
+  .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+  .form-group select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.5rem center; padding-right: 1.5rem; }
+  .addr { font-family: monospace; font-size: 0.85rem; color: var(--accent); word-break: break-all; }
+  .status { font-size: 0.8rem; margin-top: 0.75rem; padding: 0.5rem; border-radius: 4px; word-break: break-all; white-space: pre-wrap; }
+  .status.ok { color: var(--accent); background: rgba(68,255,136,0.08); }
+  .status.err { color: var(--err); background: rgba(255,102,102,0.08); }
+  .status.pending { color: #fa0; background: rgba(255,170,0,0.08); }
+  .hidden { display: none; }
+  .action-form { display: none; }
+  .action-form.active { display: block; }
+  .connect-row { display: flex; align-items: center; gap: 0.75rem; }
+  .addr-row { display: flex; align-items: center; gap: 0.5rem; min-width: 0; flex: 1; }
+  .addr { display: inline-flex; min-width: 0; max-width: 100%; }
+  .addr > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .addr > span:last-child { flex-shrink: 0; white-space: nowrap; }
+  .badge { font-size: 0.7rem; padding: 0.15rem 0.4rem; border-radius: 4px; background: var(--border); color: var(--muted); flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>HyperLiquid Send</h1>
+  <p class="subtitle">Sign and send transactions via your Web3 wallet &middot; <a href="/">Setup</a></p>
+
+  <div class="card">
+    <div class="connect-row">
+      <button class="btn btn-primary" id="connect-btn">Connect Wallet</button>
+      <span class="addr-row">
+        <a class="addr" id="connected-addr" target="_blank" rel="noopener" style="text-decoration:none;color:var(--accent)"></a>
+        <span class="badge hidden" id="account-mode"></span>
+      </span>
+    </div>
+  </div>
+
+  <div class="card" id="action-card" style="display:none">
+    <div class="tabs">
+      <button class="tab active" data-action="send">Send</button>
+      <button class="tab" data-action="withdraw">Withdraw</button>
+    </div>
+
+    <form id="send-form" class="action-form active" autocomplete="off">
+      <div class="form-group">
+        <label>Token</label>
+        <select name="token" required>
+          <option value="">Loading tokens...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Destination address</label>
+        <input type="text" name="destination" placeholder="0x..." required>
+      </div>
+      <div class="form-group">
+        <label>Amount</label>
+        <input type="text" name="amount" placeholder="0.00" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Sign & Send</button>
+    </form>
+
+    <form id="withdraw-form" class="action-form" autocomplete="off">
+      <div class="form-group">
+        <label>Destination address</label>
+        <input type="text" name="destination" placeholder="0x..." required>
+      </div>
+      <div class="form-group">
+        <label>Amount (USD)</label>
+        <input type="text" name="amount" placeholder="0.00" required>
+      </div>
+      <p style="font-size:0.75rem; color:var(--muted); margin-bottom:0.75rem;">Withdrawal to Arbitrum L1. ~5 min finalization, $1 fee. <a id="arbiscan-link" href="#" target="_blank" rel="noopener" style="color:var(--accent);">View on Arbiscan</a></p>
+      <button type="submit" class="btn btn-primary">Sign & Send</button>
+    </form>
+
+    <div class="status hidden" id="tx-status"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var account = null;
+  var unified = false;
+  var tokens = [];
+  var baseUrl = window.location.origin;
+  var hlApiUrl = 'https://api.hyperliquid.xyz';
+
+  // EIP-712 constants for HyperLiquid
+  var SIGNATURE_CHAIN_ID = 421614; // 0x66eee
+  var DOMAIN = {
+    name: 'HyperliquidSignTransaction',
+    version: '1',
+    chainId: SIGNATURE_CHAIN_ID,
+    verifyingContract: '0x0000000000000000000000000000000000000000'
+  };
+  var EIP712_DOMAIN_TYPE = [
+    { name: 'name', type: 'string' },
+    { name: 'version', type: 'string' },
+    { name: 'chainId', type: 'uint256' },
+    { name: 'verifyingContract', type: 'address' }
+  ];
+  var ACTION_TYPES = {
+    usdSend: {
+      primaryType: 'HyperliquidTransaction:UsdSend',
+      fields: [
+        { name: 'hyperliquidChain', type: 'string' },
+        { name: 'destination', type: 'string' },
+        { name: 'amount', type: 'string' },
+        { name: 'time', type: 'uint64' }
+      ]
+    },
+    spotSend: {
+      primaryType: 'HyperliquidTransaction:SpotSend',
+      fields: [
+        { name: 'hyperliquidChain', type: 'string' },
+        { name: 'destination', type: 'string' },
+        { name: 'token', type: 'string' },
+        { name: 'amount', type: 'string' },
+        { name: 'time', type: 'uint64' }
+      ]
+    },
+    sendAsset: {
+      primaryType: 'HyperliquidTransaction:SendAsset',
+      fields: [
+        { name: 'hyperliquidChain', type: 'string' },
+        { name: 'destination', type: 'string' },
+        { name: 'sourceDex', type: 'string' },
+        { name: 'destinationDex', type: 'string' },
+        { name: 'token', type: 'string' },
+        { name: 'amount', type: 'string' },
+        { name: 'fromSubAccount', type: 'string' },
+        { name: 'nonce', type: 'uint64' }
+      ]
+    },
+    withdraw: {
+      primaryType: 'HyperliquidTransaction:Withdraw',
+      fields: [
+        { name: 'hyperliquidChain', type: 'string' },
+        { name: 'destination', type: 'string' },
+        { name: 'amount', type: 'string' },
+        { name: 'time', type: 'uint64' }
+      ]
+    }
+  };
+
+  // --- Detect account abstraction mode ---
+  async function detectAccountMode(addr) {
+    try {
+      var resp = await fetch(hlApiUrl + '/info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'userAbstraction', user: addr })
+      });
+      var mode = await resp.json();
+      // mode is a string like "unifiedAccount", "portfolioMargin", "disabled", "default"
+      unified = (mode === 'unifiedAccount' || mode === 'portfolioMargin');
+      var badge = document.getElementById('account-mode');
+      badge.textContent = unified ? 'unified' : 'classic';
+      badge.classList.remove('hidden');
+    } catch (e) {
+      console.error('detectAccountMode:', e);
+      unified = false;
+    }
+  }
+
+  function setAccount(addr) {
+    account = addr;
+    var addrEl = document.getElementById('connected-addr');
+    if (addr) {
+      addrEl.innerHTML = '<span>' + esc(addr.slice(0, -4)) + '</span><span>' + esc(addr.slice(-4)) + '</span>';
+      addrEl.href = 'https://app.hyperliquid.xyz/explorer/address/' + addr;
+    } else {
+      addrEl.innerHTML = '';
+      addrEl.removeAttribute('href');
+    }
+    document.getElementById('action-card').style.display = addr ? '' : 'none';
+    document.getElementById('connect-btn').textContent = addr ? 'Connected' : 'Connect Wallet';
+    var badge = document.getElementById('account-mode');
+    if (!addr) { badge.classList.add('hidden'); unified = false; }
+    // Pre-fill destination with own address for withdraw
+    var wdDest = document.querySelector('#withdraw-form input[name="destination"]');
+    if (wdDest && addr) wdDest.value = addr;
+    var arbLink = document.getElementById('arbiscan-link');
+    if (arbLink) arbLink.href = addr ? 'https://arbiscan.io/address/' + addr : '#';
+    if (addr) detectAccountMode(addr);
+  }
+
+  // --- Connect wallet ---
+  document.getElementById('connect-btn').addEventListener('click', async function() {
+    if (!window.ethereum) { alert('No Web3 wallet detected'); return; }
+    try {
+      var accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      setAccount(accounts[0] || null);
+    } catch (e) {
+      alert(e.message || 'Connection failed');
+    }
+  });
+
+  // --- Listen for account changes ---
+  if (window.ethereum) {
+    window.ethereum.on('accountsChanged', function(accounts) {
+      setAccount(accounts[0] || null);
+    });
+  }
+
+  // --- Tabs ---
+  document.querySelectorAll('.tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.action-form').forEach(function(f) { f.classList.remove('active'); });
+      tab.classList.add('active');
+      var action = tab.getAttribute('data-action');
+      var formId = { send: 'send-form', withdraw: 'withdraw-form' }[action];
+      document.getElementById(formId).classList.add('active');
+      hideStatus();
+    });
+  });
+
+  // --- Load tokens ---
+  async function loadTokens() {
+    try {
+      var resp = await fetch(baseUrl + '/tokens');
+      tokens = await resp.json();
+      var sel = document.querySelector('#send-form select[name="token"]');
+      sel.innerHTML = tokens.map(function(t) {
+        var label = t.symbol + (t.name !== t.symbol ? ' (' + t.name + ')' : '');
+        return '<option value="' + t.index + '">' + esc(label) + '</option>';
+      }).join('');
+    } catch (e) {
+      console.error('loadTokens:', e);
+    }
+  }
+  loadTokens();
+
+  function getTokenByIndex(idx) {
+    return tokens.find(function(t) { return t.index === idx; });
+  }
+
+  // --- Build EIP-712 typed data ---
+  function buildTypedData(actionType, action) {
+    var spec = ACTION_TYPES[actionType];
+    var types = { EIP712Domain: EIP712_DOMAIN_TYPE };
+    types[spec.primaryType] = spec.fields;
+    // Filter message to only include fields defined in types (matches HL SDK behavior)
+    var knownKeys = new Set(spec.fields.map(function(f) { return f.name; }));
+    var message = {};
+    Object.keys(action).forEach(function(k) { if (knownKeys.has(k)) message[k] = action[k]; });
+    return {
+      domain: DOMAIN,
+      types: types,
+      primaryType: spec.primaryType,
+      message: message
+    };
+  }
+
+  // --- Split signature ---
+  function splitSig(sig) {
+    var raw = sig.slice(2);
+    return {
+      r: '0x' + raw.slice(0, 64),
+      s: '0x' + raw.slice(64, 128),
+      v: parseInt(raw.slice(128, 130), 16)
+    };
+  }
+
+  // --- Status display ---
+  function showStatus(html, cls) {
+    var el = document.getElementById('tx-status');
+    el.innerHTML = html;
+    el.className = 'status ' + cls;
+    el.classList.remove('hidden');
+  }
+  function hideStatus() {
+    document.getElementById('tx-status').classList.add('hidden');
+  }
+
+  // --- Fetch tx hash from ledger after successful send ---
+  async function fetchTxLink(sendTime) {
+    try {
+      var resp = await fetch(hlApiUrl + '/info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'userNonFundingLedgerUpdates',
+          user: account,
+          startTime: sendTime - 5000
+        })
+      });
+      var entries = await resp.json();
+      if (Array.isArray(entries) && entries.length > 0) {
+        var latest = entries[entries.length - 1];
+        if (latest.hash) {
+          var link = 'https://app.hyperliquid.xyz/explorer/tx/' + latest.hash;
+          showStatus('Transaction sent successfully. <a href="' + link + '" target="_blank" rel="noopener" style="color:var(--accent)">View tx</a>', 'ok');
+        }
+      }
+    } catch (e) {
+      // non-critical, keep the success message
+    }
+  }
+
+  // --- Sign and send ---
+  async function signAndSend(actionType, action, exchangeAction) {
+    if (!account) { alert('Connect wallet first'); return; }
+
+    var typedData = buildTypedData(actionType, action);
+    showStatus('Waiting for wallet signature...', 'pending');
+
+    try {
+      var sig = await window.ethereum.request({
+        method: 'eth_signTypedData_v4',
+        params: [account, JSON.stringify(typedData)]
+      });
+      var parts = splitSig(sig);
+      showStatus('Sending to HyperLiquid...', 'pending');
+
+      var now = action.time || action.nonce;
+      var resp = await fetch(hlApiUrl + '/exchange', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: exchangeAction,
+          nonce: now,
+          signature: parts,
+          vaultAddress: null
+        })
+      });
+      var data = await resp.json();
+      if (resp.ok && data.status === 'ok') {
+        showStatus('Transaction sent successfully.', 'ok');
+        fetchTxLink(now);
+      } else if (resp.ok && data.status === 'err') {
+        showStatus(esc(String(data.response)), 'err');
+      } else {
+        showStatus(esc(JSON.stringify(data)), 'err');
+      }
+    } catch (e) {
+      showStatus(esc(e.message || 'Signing failed'), 'err');
+    }
+  }
+
+  // --- Send form handler ---
+  document.getElementById('send-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var fd = new FormData(e.target);
+    var tokenIdx = parseInt(fd.get('token'));
+    var token = getTokenByIndex(tokenIdx);
+    var dest = fd.get('destination');
+    var amount = fd.get('amount');
+    var now = Date.now();
+
+    if (unified) {
+      // sendAsset for unified accounts
+      var tokenField = token.symbol + ':' + (token.tokenId || '');
+      var action = {
+        hyperliquidChain: 'Mainnet',
+        signatureChainId: '0x66eee',
+        destination: dest,
+        sourceDex: 'spot',
+        destinationDex: '',
+        token: tokenField,
+        amount: amount,
+        fromSubAccount: '',
+        nonce: now
+      };
+      var exchangeAction = Object.assign({ type: 'sendAsset' }, action);
+      signAndSend('sendAsset', action, exchangeAction);
+    } else if (tokenIdx === 0) {
+      // USDC on classic account — use usdSend
+      var action = {
+        hyperliquidChain: 'Mainnet',
+        signatureChainId: '0x66eee',
+        destination: dest,
+        amount: amount,
+        time: now
+      };
+      var exchangeAction = Object.assign({ type: 'usdSend' }, action);
+      signAndSend('usdSend', action, exchangeAction);
+    } else {
+      // Non-USDC on classic account — use spotSend
+      var tokenField = token.symbol + ':' + (token.tokenId || '');
+      var action = {
+        hyperliquidChain: 'Mainnet',
+        signatureChainId: '0x66eee',
+        destination: dest,
+        token: tokenField,
+        amount: amount,
+        time: now
+      };
+      var exchangeAction = Object.assign({ type: 'spotSend' }, action);
+      signAndSend('spotSend', action, exchangeAction);
+    }
+  });
+
+  // --- Withdraw form handler ---
+  document.getElementById('withdraw-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var fd = new FormData(e.target);
+    var now = Date.now();
+    var action = {
+      hyperliquidChain: 'Mainnet',
+      signatureChainId: '0x66eee',
+      destination: fd.get('destination'),
+      amount: fd.get('amount'),
+      time: now
+    };
+    var exchangeAction = Object.assign({ type: 'withdraw3' }, action);
+    signAndSend('withdraw', action, exchangeAction);
+  });
+
+  function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+})();
+</script>
+</body>
+</html>

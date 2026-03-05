@@ -17,6 +17,7 @@ use rpc::AppState;
 pub fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/", get(wallet_page).post(rpc::handle_rpc))
+        .route("/send", get(send_page))
         .route("/health", get(health))
         .route("/tokens", get(tokens))
         .layer(CorsLayer::permissive())
@@ -25,6 +26,10 @@ pub fn build_router(state: AppState) -> Router {
 
 async fn wallet_page() -> Html<&'static str> {
     Html(include_str!("wallet.html"))
+}
+
+async fn send_page() -> Html<&'static str> {
+    Html(include_str!("send.html"))
 }
 
 async fn health() -> StatusCode {
@@ -45,6 +50,7 @@ async fn tokens(State(state): State<AppState>) -> (StatusCode, Json<serde_json::
                         "name": t.full_name.as_deref().unwrap_or(&t.name),
                         "decimals": t.wei_decimals,
                         "index": t.index,
+                        "tokenId": t.token_id,
                     })
                 })
                 .collect();
