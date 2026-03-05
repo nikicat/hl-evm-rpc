@@ -34,26 +34,34 @@ fn is_running(pid: u32) -> bool {
 }
 
 fn stop_server() {
-    if let Some(pid) = read_pid() {
-        if is_running(pid) {
-            unsafe { libc::kill(pid as i32, libc::SIGTERM) };
-            eprintln!("sent SIGTERM to PID {pid}");
-            for _ in 0..30 {
-                std::thread::sleep(std::time::Duration::from_millis(100));
-                if !is_running(pid) {
-                    break;
-                }
-            }
-            if is_running(pid) {
-                unsafe { libc::kill(pid as i32, libc::SIGKILL) };
-                eprintln!("force killed PID {pid}");
-            }
-        }
+    let Some(pid) = read_pid() else {
+        eprintln!("not running (no PID file)");
+        return;
+    };
+
+    if !is_running(pid) {
         fs::remove_file(pid_file_path()).ok();
-        eprintln!("stopped");
-    } else {
-        eprintln!("not running");
+        eprintln!("not running (stale PID file for {pid}, removed)");
+        return;
     }
+
+    unsafe { libc::kill(pid as i32, libc::SIGTERM) };
+    eprintln!("sent SIGTERM to PID {pid}");
+
+    for _ in 0..30 {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        if !is_running(pid) {
+            break;
+        }
+    }
+
+    if is_running(pid) {
+        unsafe { libc::kill(pid as i32, libc::SIGKILL) };
+        eprintln!("force killed PID {pid}");
+    }
+
+    fs::remove_file(pid_file_path()).ok();
+    eprintln!("stopped");
 }
 
 fn start_daemon() {
@@ -144,9 +152,9 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind(&config.listen_addr)
         .await
-        .expect("failed to bind");
+        .unwrap_or_else(|e| panic!("failed to bind {}: {e}", config.listen_addr));
 
-    info!("listening on {}", config.listen_addr);
+    info!("listening on http://{}", config.listen_addr);
     info!("chain_id={} hl_api={}", config.chain_id, config.hl_api_url);
 
     axum::serve(listener, app)

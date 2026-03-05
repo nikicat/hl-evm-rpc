@@ -5,7 +5,8 @@ pub mod rpc;
 
 use axum::extract::State;
 use axum::http::StatusCode;
-use axum::routing::{get, post};
+use axum::response::Html;
+use axum::routing::get;
 use axum::{Json, Router};
 use serde_json::json;
 use tower_http::cors::CorsLayer;
@@ -15,11 +16,15 @@ use rpc::AppState;
 
 pub fn build_router(state: AppState) -> Router {
     Router::new()
-        .route("/", post(rpc::handle_rpc))
+        .route("/", get(wallet_page).post(rpc::handle_rpc))
         .route("/health", get(health))
         .route("/tokens", get(tokens))
         .layer(CorsLayer::permissive())
         .with_state(state)
+}
+
+async fn wallet_page() -> Html<&'static str> {
+    Html(include_str!("wallet.html"))
 }
 
 async fn health() -> StatusCode {

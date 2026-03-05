@@ -44,13 +44,11 @@ async fn dispatch_single(body: &Value, state: &AppState) -> JsonRpcResponse {
 
     let id = req.id.clone();
 
-    eprintln!("[rpc] method={}", req.method);
-    let resp = match methods::dispatch(&req.method, &req.params, state.chain_id, &state.hl).await {
+    match methods::dispatch(&req.method, &req.params, state.chain_id, &state.hl).await {
         Ok(result) => JsonRpcResponse::ok(id, result),
         Err((code, msg)) => {
-            eprintln!("[rpc] ERROR method={} code={} msg={}", req.method, code, msg);
+            eprintln!("[rpc] ERROR method={} code={code} msg={msg}", req.method);
             JsonRpcResponse::err(id, code, msg)
         }
-    };
-    resp
+    }
 }

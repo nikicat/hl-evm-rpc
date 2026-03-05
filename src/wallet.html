@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HyperLiquid Wallet Setup</title>
+<style>
+  :root { --bg: #0a0a0f; --card: #14141f; --border: #2a2a3a; --accent: #4f8; --text: #e0e0e8; --muted: #888; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
+  .container { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+  .subtitle { color: var(--muted); margin-bottom: 2rem; font-size: 0.9rem; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
+  .card h2 { font-size: 1rem; margin-bottom: 0.75rem; }
+  .btn { display: inline-block; padding: 0.5rem 1rem; border: none; border-radius: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-small { padding: 0.35rem 0.75rem; font-size: 0.8rem; background: var(--border); color: var(--text); }
+  .network-info { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; font-size: 0.85rem; margin-bottom: 1rem; }
+  .network-info dt { color: var(--muted); }
+  .token-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .token-row { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+  .token-row:last-child { border-bottom: none; }
+  .token-info { display: flex; align-items: baseline; gap: 0.5rem; }
+  .token-symbol { font-weight: 600; }
+  .token-name { color: var(--muted); font-size: 0.8rem; }
+  .token-addr { font-family: monospace; font-size: 0.7rem; color: var(--muted); }
+  .status { font-size: 0.8rem; margin-top: 0.5rem; }
+  .status.ok { color: var(--accent); }
+  .status.err { color: #f66; }
+  #no-wallet { display: none; color: #f66; font-size: 0.9rem; margin-bottom: 1rem; }
+  .search { width: 100%; padding: 0.5rem; margin-bottom: 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.85rem; outline: none; }
+  .search:focus { border-color: var(--accent); }
+  .loading { color: var(--muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>HyperLiquid EVM RPC</h1>
+  <p class="subtitle">Add the network and tokens to your Web3 wallet</p>
+  <div id="no-wallet">No Web3 wallet detected. Install MetaMask or another wallet extension.</div>
+
+  <div class="card">
+    <h2>Network</h2>
+    <dl class="network-info">
+      <dt>Name</dt><dd>HyperLiquid (RPC Proxy)</dd>
+      <dt>Chain ID</dt><dd id="chain-id"></dd>
+      <dt>RPC URL</dt><dd id="rpc-url"></dd>
+      <dt>Currency</dt><dd>USDC</dd>
+    </dl>
+    <button class="btn btn-primary" id="add-network" disabled>Add Network</button>
+    <div class="status" id="network-status"></div>
+  </div>
+
+  <div class="card">
+    <h2>Tokens</h2>
+    <input class="search" id="token-search" type="text" placeholder="Filter tokens...">
+    <div id="token-list" class="token-list">
+      <div class="loading">Loading tokens...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const rpcUrl = window.location.origin;
+  const chainIdDec = null; // filled from /tokens or eth_chainId
+  let tokens = [];
+  let chainIdHex = null;
+
+  document.getElementById('rpc-url').textContent = rpcUrl;
+
+  async function fetchChainId() {
+    const resp = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_chainId', params: [], id: 1 })
+    });
+    const data = await resp.json();
+    chainIdHex = data.result;
+    document.getElementById('chain-id').textContent = parseInt(chainIdHex, 16) + ' (' + chainIdHex + ')';
+  }
+
+  async function fetchTokens() {
+    const resp = await fetch(rpcUrl + '/tokens');
+    tokens = await resp.json();
+    renderTokens(tokens);
+  }
+
+  function renderTokens(list) {
+    const container = document.getElementById('token-list');
+    if (!list.length) {
+      container.innerHTML = '<div class="loading">No tokens found</div>';
+      return;
+    }
+    container.innerHTML = list.map(function(t) {
+      const shortAddr = t.address.slice(0, 6) + '...' + t.address.slice(-4);
+      return '<div class="token-row" data-symbol="' + esc(t.symbol) + '" data-name="' + esc(t.name) + '">'
+        + '<div>'
+        + '<div class="token-info"><span class="token-symbol">' + esc(t.symbol) + '</span><span class="token-name">' + esc(t.name) + '</span></div>'
+        + '<div class="token-addr">' + esc(t.address) + '</div>'
+        + '</div>'
+        + '<button class="btn btn-small" onclick="addToken(\'' + esc(t.address) + '\',\'' + esc(t.symbol) + '\',' + t.decimals + ')">Add</button>'
+        + '</div>';
+    }).join('');
+  }
+
+  function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  document.getElementById('token-search').addEventListener('input', function(e) {
+    var q = e.target.value.toLowerCase();
+    var filtered = tokens.filter(function(t) {
+      return t.symbol.toLowerCase().includes(q) || t.name.toLowerCase().includes(q) || t.address.toLowerCase().includes(q);
+    });
+    renderTokens(filtered);
+  });
+
+  window.addToken = async function(address, symbol, decimals) {
+    if (!window.ethereum) return;
+    try {
+      await window.ethereum.request({
+        method: 'wallet_watchAsset',
+        params: { type: 'ERC20', options: { address: address, symbol: symbol, decimals: decimals } }
+      });
+    } catch (e) {
+      console.error('addToken error:', e);
+    }
+  };
+
+  document.getElementById('add-network').addEventListener('click', async function() {
+    if (!window.ethereum || !chainIdHex) return;
+    var status = document.getElementById('network-status');
+    try {
+      await window.ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [{
+          chainId: chainIdHex,
+          chainName: 'HyperLiquid (RPC Proxy)',
+          nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 8 },
+          rpcUrls: [rpcUrl],
+          blockExplorerUrls: ['https://app.hyperliquid.xyz/explorer']
+        }]
+      });
+      status.textContent = 'Network added!';
+      status.className = 'status ok';
+    } catch (e) {
+      status.textContent = e.message || 'Failed to add network';
+      status.className = 'status err';
+    }
+  });
+
+  // Init
+  if (!window.ethereum) {
+    document.getElementById('no-wallet').style.display = 'block';
+  }
+
+  fetchChainId().then(function() {
+    document.getElementById('add-network').disabled = !window.ethereum;
+  });
+  fetchTokens();
+})();
+</script>
+</body>
+</html>
