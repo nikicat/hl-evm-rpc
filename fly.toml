@@ -1,0 +1,20 @@
+app = "hl-evm-rpc"
+primary_region = "arn"
+
+[build]
+image = "registry.fly.io/hl-evm-rpc:latest"
+
+[env]
+LISTEN_ADDR = "0.0.0.0:8080"
+RUST_LOG = "info"
+
+[http_service]
+internal_port = 8080
+force_https = true
+auto_stop_machines = "stop"
+auto_start_machines = true
+min_machines_running = 0
+
+[[vm]]
+size = "shared-cpu-1x"
+memory = "256mb"

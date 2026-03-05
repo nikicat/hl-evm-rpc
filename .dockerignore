@@ -1,0 +1,7 @@
+target/
+.git/
+*.md
+deploy.sh
+fly.toml
+Dockerfile
+.dockerignore
