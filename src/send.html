@@ -98,6 +98,8 @@
   </div>
 </div>
 
+<div id="build-ver" style="text-align:center;color:#555;font-size:0.7rem;margin-top:2rem;"></div>
+
 <script>
 (function() {
   var account = null;
@@ -427,6 +429,10 @@
     };
     var exchangeAction = Object.assign({ type: 'withdraw3' }, action);
     signAndSend('withdraw', action, exchangeAction);
+  });
+
+  fetch(baseUrl + '/version').then(function(r) { return r.text(); }).then(function(v) {
+    document.getElementById('build-ver').textContent = 'v' + v;
   });
 
   function esc(s) {

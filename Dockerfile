@@ -14,6 +14,8 @@ RUN cargo chef cook --release --recipe-path recipe.json
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY tests ./tests
+ARG BUILD_VERSION=dev
+ENV BUILD_VERSION=${BUILD_VERSION}
 RUN cargo build --release
 
 FROM debian:bookworm-slim

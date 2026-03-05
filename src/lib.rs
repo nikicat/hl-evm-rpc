@@ -14,10 +14,16 @@ use tower_http::cors::CorsLayer;
 use evm::address;
 use rpc::AppState;
 
+const BUILD_VERSION: &str = match option_env!("BUILD_VERSION") {
+    Some(v) => v,
+    None => "dev",
+};
+
 pub fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/", get(wallet_page).post(rpc::handle_rpc))
         .route("/send", get(send_page))
+        .route("/version", get(version))
         .route("/health", get(health))
         .route("/tokens", get(tokens))
         .layer(CorsLayer::permissive())
@@ -30,6 +36,10 @@ async fn wallet_page() -> Html<&'static str> {
 
 async fn send_page() -> Html<&'static str> {
     Html(include_str!("send.html"))
+}
+
+async fn version() -> &'static str {
+    BUILD_VERSION
 }
 
 async fn health() -> StatusCode {

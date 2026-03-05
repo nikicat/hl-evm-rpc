@@ -9,7 +9,7 @@ curl -L https://fly.io/install.sh | sh
 # Login
 fly auth login
 
-# Auth podman with Fly registry (one-time, persists in ~/.docker/config.json)
+# Auth podman with Fly registry (persists in ~/.docker/config.json, but expires)
 fly auth docker
 
 # Create app
@@ -28,7 +28,8 @@ fly scale count 1
 ./deploy.sh
 ```
 
-This runs: podman build → podman push → fly deploy.
+This runs: podman build → fly auth docker → podman push → fly deploy.
+Images are tagged with a short content digest for predictable deploys.
 
 ## Quirks and gotchas
 

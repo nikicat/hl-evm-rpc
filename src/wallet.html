@@ -63,6 +63,8 @@
   </div>
 </div>
 
+<div id="build-ver" style="text-align:center;color:#555;font-size:0.7rem;margin-top:2rem;"></div>
+
 <script>
 (function() {
   const rpcUrl = window.location.origin;
@@ -164,6 +166,9 @@
     document.getElementById('add-network').disabled = !window.ethereum;
   });
   fetchTokens();
+  fetch(rpcUrl + '/version').then(function(r) { return r.text(); }).then(function(v) {
+    document.getElementById('build-ver').textContent = 'v' + v;
+  });
 })();
 </script>
 </body>
