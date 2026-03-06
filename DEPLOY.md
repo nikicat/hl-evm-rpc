@@ -25,7 +25,7 @@ fly scale count 1
 ## Subsequent deploys
 
 ```bash
-./deploy.sh
+just deploy
 ```
 
 This runs: podman build → fly auth docker → podman push → fly deploy.

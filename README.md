@@ -82,7 +82,13 @@ Tests spin up a mock HL API server and the full RPC proxy, exercising all method
 
 ## Deployment
 
-See [DEPLOY.md](DEPLOY.md) for Fly.io deployment instructions.
+Requires [just](https://github.com/casey/just). See [DEPLOY.md](DEPLOY.md) for Fly.io setup.
+
+```bash
+just check    # clippy + tests
+just build    # release binary
+just deploy   # build & push to Fly.io
+```
 
 ## License
 
