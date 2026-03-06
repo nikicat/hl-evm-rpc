@@ -9,16 +9,19 @@ use hl_evm_rpc::hl::HlClient;
 use hl_evm_rpc::hl::cache::CachedHlClient;
 use hl_evm_rpc::rpc::AppState;
 
+fn runtime_dir() -> PathBuf {
+    PathBuf::from(
+        std::env::var("XDG_RUNTIME_DIR")
+            .expect("XDG_RUNTIME_DIR is not set"),
+    )
+}
+
 fn pid_file_path() -> PathBuf {
-    let dir =
-        std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".into());
-    PathBuf::from(dir).join("hl-evm-rpc.pid")
+    runtime_dir().join("hl-evm-rpc.pid")
 }
 
 fn log_file_path() -> PathBuf {
-    let dir =
-        std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".into());
-    PathBuf::from(dir).join("hl-evm-rpc.log")
+    runtime_dir().join("hl-evm-rpc.log")
 }
 
 fn read_pid() -> Option<u32> {
@@ -30,7 +33,13 @@ fn read_pid() -> Option<u32> {
 }
 
 fn is_running(pid: u32) -> bool {
+    // SAFETY: kill(pid, 0) checks process existence without sending a signal.
     unsafe { libc::kill(pid as i32, 0) == 0 }
+}
+
+fn send_signal(pid: u32, sig: i32) {
+    // SAFETY: sending a signal to a known PID we own.
+    unsafe { libc::kill(pid as i32, sig) };
 }
 
 fn stop_server() {
@@ -45,7 +54,7 @@ fn stop_server() {
         return;
     }
 
-    unsafe { libc::kill(pid as i32, libc::SIGTERM) };
+    send_signal(pid, libc::SIGTERM);
     eprintln!("sent SIGTERM to PID {pid}");
 
     for _ in 0..30 {
@@ -56,7 +65,7 @@ fn stop_server() {
     }
 
     if is_running(pid) {
-        unsafe { libc::kill(pid as i32, libc::SIGKILL) };
+        send_signal(pid, libc::SIGKILL);
         eprintln!("force killed PID {pid}");
     }
 
@@ -89,7 +98,11 @@ fn start_daemon() {
         .spawn()
         .expect("failed to spawn daemon");
 
-    eprintln!("started (PID {}), log: {}", child.id(), log_path.display());
+    let pid = child.id();
+    // Intentionally detach: parent exits, child runs as daemon.
+    std::mem::forget(child);
+
+    eprintln!("started (PID {pid}), log: {}", log_path.display());
 }
 
 #[tokio::main]

@@ -25,7 +25,7 @@ pub async fn dispatch(
         "eth_getLogs" => Ok(json!([])),
         "eth_estimateGas" => Ok(json!("0x0")),
         "eth_sendRawTransaction" => Err((-32000, "read-only proxy".into())),
-        "web3_clientVersion" => Ok(json!("hl-evm-rpc/0.1.0")),
+        "web3_clientVersion" => Ok(json!(format!("hl-evm-rpc/{}", env!("CARGO_PKG_VERSION")))),
         "eth_syncing" => Ok(json!(false)),
         "eth_accounts" => Ok(json!([])),
         "eth_getStorageAt" => Ok(json!("0x0000000000000000000000000000000000000000000000000000000000000000")),
@@ -168,7 +168,7 @@ fn eth_get_block_by_number(params: &Value, chain_id: u64) -> Result<Value, (i64,
     let ts_hex = format!("0x{ts:x}");
     let zero = "0x0000000000000000000000000000000000000000000000000000000000000000";
     let empty_root = "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421";
-    let full = params.get(1).and_then(|v| v.as_bool()).unwrap_or(false);
+    let _full = params.get(1).and_then(|v| v.as_bool()).unwrap_or(false);
 
     let block = json!({
         "number": block_hex,
@@ -188,7 +188,7 @@ fn eth_get_block_by_number(params: &Value, chain_id: u64) -> Result<Value, (i64,
         "gasLimit": "0x0",
         "gasUsed": "0x0",
         "timestamp": ts_hex,
-        "transactions": if full { json!([]) } else { json!([]) },
+        "transactions": [],
         "uncles": [],
         "baseFeePerGas": "0x0",
         "chainId": format!("0x{chain_id:x}"),

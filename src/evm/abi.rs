@@ -15,7 +15,7 @@ pub fn encode_string(s: &str) -> Vec<u8> {
     let bytes = s.as_bytes();
     let len = bytes.len();
     // padded data length: ceil(len / 32) * 32
-    let padded_len = (len + 31) / 32 * 32;
+    let padded_len = len.div_ceil(32) * 32;
 
     let mut result = Vec::with_capacity(32 + 32 + padded_len);
 

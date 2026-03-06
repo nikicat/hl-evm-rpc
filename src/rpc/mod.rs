@@ -20,12 +20,13 @@ pub async fn handle_rpc(
     Json(body): Json<Value>,
 ) -> (StatusCode, Json<Value>) {
     if let Some(arr) = body.as_array() {
-        // Batch request
-        let mut results = Vec::with_capacity(arr.len());
-        for item in arr {
-            let resp = dispatch_single(item, &state).await;
-            results.push(serde_json::to_value(resp).unwrap());
-        }
+        // Batch request — dispatch in parallel
+        let futs: Vec<_> = arr.iter().map(|item| dispatch_single(item, &state)).collect();
+        let results: Vec<_> = futures::future::join_all(futs)
+            .await
+            .into_iter()
+            .map(|resp| serde_json::to_value(resp).unwrap())
+            .collect();
         (StatusCode::OK, Json(Value::Array(results)))
     } else {
         // Single request

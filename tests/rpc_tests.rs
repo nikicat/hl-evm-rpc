@@ -209,7 +209,8 @@ async fn test_eth_syncing() {
 async fn test_web3_client_version() {
     let url = setup().await;
     let resp = rpc_call(&url, "web3_clientVersion", json!([])).await;
-    assert_eq!(resp["result"], "hl-evm-rpc/0.1.0");
+    let version = resp["result"].as_str().unwrap();
+    assert!(version.starts_with("hl-evm-rpc/"));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -394,7 +395,7 @@ async fn test_batch_request() {
     assert_eq!(results.len(), 3);
     assert_eq!(results[0]["result"], "0x484c");
     assert_eq!(results[1]["result"], "18508");
-    assert_eq!(results[2]["result"], "hl-evm-rpc/0.1.0");
+    assert!(results[2]["result"].as_str().unwrap().starts_with("hl-evm-rpc/"));
 }
 
 // ── Helper endpoint tests ────────────────────────────────────────────

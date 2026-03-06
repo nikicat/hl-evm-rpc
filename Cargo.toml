@@ -2,9 +2,13 @@
 name = "hl-evm-rpc"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "Ethereum JSON-RPC proxy for HyperLiquid exchange balances"
+repository = "https://github.com/nikicat/hl-evm-rpc"
 
 [dependencies]
 axum = "0.8"
+futures = { version = "0.3", default-features = false, features = ["alloc"] }
 hex = "0.4"
 libc = "0.2"
 moka = { version = "0.12", features = ["future"] }

@@ -106,6 +106,8 @@
   var unified = false;
   var tokens = [];
   var baseUrl = window.location.origin;
+  // Transactions are signed client-side via EIP-712 and sent directly to the HL Exchange API.
+  // The RPC proxy is only used for balance queries — it cannot relay signed transactions.
   var hlApiUrl = 'https://api.hyperliquid.xyz';
 
   // EIP-712 constants for HyperLiquid
